@@ -1,0 +1,896 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handlers: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">asperitas-clone/pkg/handlers/post.go (93.2%)</option>
+				
+				<option value="file1">asperitas-clone/pkg/handlers/post_mock.go (100.0%)</option>
+				
+				<option value="file2">asperitas-clone/pkg/handlers/user.go (90.7%)</option>
+				
+				<option value="file3">asperitas-clone/pkg/handlers/user_mock.go (78.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handlers
+
+import (
+        "database/sql"
+        "encoding/json"
+        "errors"
+        "net/http"
+        "time"
+
+        "asperitas-clone/pkg/items"
+        "asperitas-clone/pkg/session"
+
+        "github.com/gorilla/mux"
+        "gopkg.in/mgo.v2"
+        "gopkg.in/mgo.v2/bson"
+
+        _ "github.com/go-sql-driver/mysql"
+)
+
+// mockgen -source="post.go" -destination="post_mock.go" -package=handlers PostRepositoryInterface
+
+type PostRepositoryInterface interface {
+        GetAllPosts() ([]*items.Post, error)
+        GetPostsByCategory(string) ([]*items.Post, error)
+        GetPostByID(bson.ObjectId) (*items.Post, error)
+        AddPost(*items.Post) (bson.ObjectId, error)
+        PostComment(*items.Post, *items.Comment) (bson.ObjectId, error)
+        DeleteComment(*items.Post, bson.ObjectId, int) error
+        DeletePost(bson.ObjectId, *items.User) error
+        DeleteUserFromVoteTry(*items.Post, int) error
+        Vote(*items.Post, int, int) error
+        GetPostsByUsername(string) ([]*items.Post, error)
+}
+
+type PostHandler struct {
+        PostRepo  PostRepositoryInterface
+        UserRepo  UserRepositoryInterface
+        Sessions  session.SessionManagerInterface
+        SessionDB *sql.DB
+}
+
+func (h *PostHandler) GetAllPosts(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        elems, err := h.PostRepo.GetAllPosts()
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `DB error`, http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">respJSON, err := json.Marshal(elems)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+
+func (h *PostHandler) GetPostByID(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        id, ok := mux.Vars(r)["POST_ID"]
+        if !ok || !bson.IsObjectIdHex(id) </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">elem, err := h.PostRepo.GetPostByID(bson.ObjectIdHex(id))
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `DB error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">elem.Views++
+        respJSON, err := json.Marshal(elem)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+
+func (h *PostHandler) GetPostsByCategory(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        category, ok := mux.Vars(r)["CATEGORY_NAME"]
+        if !ok </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get category`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">elems, err := h.PostRepo.GetPostsByCategory(category)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `DB error`, http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">respJSON, err := json.Marshal(elems)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+
+func (h *PostHandler) AddPost(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        post := items.Post{}
+        decoder := json.NewDecoder(r.Body)
+        if err := decoder.Decode(&amp;post); err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't decode`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">r.Body.Close()
+        sess, err := h.Sessions.Check(r)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">user, err := h.UserRepo.GetUserByID(sess.UserID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">post.Author = user
+        post.Comments = make([]*items.Comment, 0)
+        post.Created = time.Now().UTC()
+        post.Views = 0
+        post.UpvotePercentage = 100
+        post.Votes = []items.Vote{
+                {
+                        User: user.ID,
+                        Vote: 1,
+                },
+        }
+        post.Score = 1
+        _, err = h.PostRepo.AddPost(&amp;post)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't add post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">respJSON, err := json.Marshal(post)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `Can't marshal post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">http.Error(w, string(respJSON), http.StatusCreated)</span>
+}
+
+func (h *PostHandler) PostComment(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        id, ok := mux.Vars(r)["POST_ID"]
+        if !ok || !bson.IsObjectIdHex(id) </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">uid := bson.ObjectIdHex(id)
+        message := map[string]string{}
+        decoder := json.NewDecoder(r.Body)
+        if err := decoder.Decode(&amp;message); err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't decode`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">r.Body.Close()
+
+        sess, err := h.Sessions.Check(r)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get session`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if sess == nil </span><span class="cov8" title="1">{
+                http.Redirect(w, r, "/", http.StatusUnauthorized)
+                return
+        }</span>
+        <span class="cov8" title="1">user, err := h.UserRepo.GetUserByID(sess.UserID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get user`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get user`, http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">comment := items.Comment{
+                Created: time.Now().UTC(),
+                Author:  user,
+                Body:    message["comment"],
+        }
+
+        post, err := h.PostRepo.GetPostByID(uid)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if post == nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">_, err = h.PostRepo.PostComment(post, &amp;comment)
+        if errors.Is(err, mgo.ErrNotFound) </span><span class="cov8" title="1">{
+                http.Error(w, `Post not found`, http.StatusNoContent)
+                return
+        }</span> else<span class="cov8" title="1"> if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't post comment`, http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">respJSON, err := json.Marshal(post)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+
+func (h *PostHandler) DeleteComment(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        postid, ok := mux.Vars(r)["POST_ID"]
+        if !ok || !bson.IsObjectIdHex(postid) </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get POST_ID`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">postuid := bson.ObjectIdHex(postid)
+        commentid, ok := mux.Vars(r)["COMMENT_ID"]
+        if !ok || !bson.IsObjectIdHex(commentid) </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get COMMENT_ID`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">commentuid := bson.ObjectIdHex(commentid)
+        sess, err := h.Sessions.Check(r)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get session`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if sess == nil </span><span class="cov8" title="1">{
+                http.Redirect(w, r, "/", http.StatusUnauthorized)
+                return
+        }</span>
+        <span class="cov8" title="1">post, err := h.PostRepo.GetPostByID(postuid)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if post == nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusBadRequest)
+                return
+        }</span>
+        <span class="cov8" title="1">err = h.PostRepo.DeleteComment(post, commentuid, sess.UserID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, err.Error(), http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">respJSON, err := json.Marshal(post)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+
+func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        postid, ok := mux.Vars(r)["POST_ID"]
+        if !ok || !bson.IsObjectIdHex(postid) </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get POST_ID`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">postuid := bson.ObjectIdHex(postid)
+        sess, err := h.Sessions.Check(r)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get session`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if sess == nil </span><span class="cov8" title="1">{
+                http.Redirect(w, r, "/", http.StatusUnauthorized)
+                return
+        }</span>
+        <span class="cov8" title="1">user, err := h.UserRepo.GetUserByID(sess.UserID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get user`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get user`, http.StatusBadRequest)
+                return
+        }</span>
+        <span class="cov8" title="1">err = h.PostRepo.DeletePost(postuid, user)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, err.Error(), http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">w.Write([]byte(`{"message":"success"}`))</span>
+}
+
+func (h *PostHandler) Vote(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        postid, ok := mux.Vars(r)["POST_ID"]
+        if !ok || !bson.IsObjectIdHex(postid) </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get POST_ID`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">postuid := bson.ObjectIdHex(postid)
+        votestring, ok := mux.Vars(r)["VOTE"]
+        if !ok </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get VOTE`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">vote := 0
+        switch votestring </span>{
+        case "upvote":<span class="cov8" title="1">
+                vote = 1</span>
+        case "downvote":<span class="cov8" title="1">
+                vote = -1</span>
+        }
+        <span class="cov8" title="1">post, err := h.PostRepo.GetPostByID(postuid)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get post`, http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">sess, err := h.Sessions.Check(r)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get session`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">if sess == nil </span><span class="cov8" title="1">{
+                http.Redirect(w, r, "/", http.StatusUnauthorized)
+                return
+        }</span>
+        <span class="cov8" title="1">err = h.PostRepo.DeleteUserFromVoteTry(post, sess.UserID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't delete vote from post`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">err = h.PostRepo.Vote(post, sess.UserID, vote)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't vote`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">respJSON, err := json.Marshal(post)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: post.go
+
+// Package handlers is a generated GoMock package.
+package handlers
+
+import (
+        items "asperitas-clone/pkg/items"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+        bson "gopkg.in/mgo.v2/bson"
+)
+
+// MockPostRepositoryInterface is a mock of PostRepositoryInterface interface.
+type MockPostRepositoryInterface struct {
+        ctrl     *gomock.Controller
+        recorder *MockPostRepositoryInterfaceMockRecorder
+}
+
+// MockPostRepositoryInterfaceMockRecorder is the mock recorder for MockPostRepositoryInterface.
+type MockPostRepositoryInterfaceMockRecorder struct {
+        mock *MockPostRepositoryInterface
+}
+
+// NewMockPostRepositoryInterface creates a new mock instance.
+func NewMockPostRepositoryInterface(ctrl *gomock.Controller) *MockPostRepositoryInterface <span class="cov8" title="1">{
+        mock := &amp;MockPostRepositoryInterface{ctrl: ctrl}
+        mock.recorder = &amp;MockPostRepositoryInterfaceMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPostRepositoryInterface) EXPECT() *MockPostRepositoryInterfaceMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// AddPost mocks base method.
+func (m *MockPostRepositoryInterface) AddPost(arg0 *items.Post) (bson.ObjectId, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "AddPost", arg0)
+        ret0, _ := ret[0].(bson.ObjectId)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// AddPost indicates an expected call of AddPost.
+func (mr *MockPostRepositoryInterfaceMockRecorder) AddPost(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPost", reflect.TypeOf((*MockPostRepositoryInterface)(nil).AddPost), arg0)
+}</span>
+
+// DeleteComment mocks base method.
+func (m *MockPostRepositoryInterface) DeleteComment(arg0 *items.Post, arg1 bson.ObjectId, arg2 int) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "DeleteComment", arg0, arg1, arg2)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// DeleteComment indicates an expected call of DeleteComment.
+func (mr *MockPostRepositoryInterfaceMockRecorder) DeleteComment(arg0, arg1, arg2 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteComment", reflect.TypeOf((*MockPostRepositoryInterface)(nil).DeleteComment), arg0, arg1, arg2)
+}</span>
+
+// DeletePost mocks base method.
+func (m *MockPostRepositoryInterface) DeletePost(arg0 bson.ObjectId, arg1 *items.User) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "DeletePost", arg0, arg1)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// DeletePost indicates an expected call of DeletePost.
+func (mr *MockPostRepositoryInterfaceMockRecorder) DeletePost(arg0, arg1 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePost", reflect.TypeOf((*MockPostRepositoryInterface)(nil).DeletePost), arg0, arg1)
+}</span>
+
+// DeleteUserFromVoteTry mocks base method.
+func (m *MockPostRepositoryInterface) DeleteUserFromVoteTry(arg0 *items.Post, arg1 int) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "DeleteUserFromVoteTry", arg0, arg1)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// DeleteUserFromVoteTry indicates an expected call of DeleteUserFromVoteTry.
+func (mr *MockPostRepositoryInterfaceMockRecorder) DeleteUserFromVoteTry(arg0, arg1 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUserFromVoteTry", reflect.TypeOf((*MockPostRepositoryInterface)(nil).DeleteUserFromVoteTry), arg0, arg1)
+}</span>
+
+// GetAllPosts mocks base method.
+func (m *MockPostRepositoryInterface) GetAllPosts() ([]*items.Post, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetAllPosts")
+        ret0, _ := ret[0].([]*items.Post)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetAllPosts indicates an expected call of GetAllPosts.
+func (mr *MockPostRepositoryInterfaceMockRecorder) GetAllPosts() *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllPosts", reflect.TypeOf((*MockPostRepositoryInterface)(nil).GetAllPosts))
+}</span>
+
+// GetPostByID mocks base method.
+func (m *MockPostRepositoryInterface) GetPostByID(arg0 bson.ObjectId) (*items.Post, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetPostByID", arg0)
+        ret0, _ := ret[0].(*items.Post)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetPostByID indicates an expected call of GetPostByID.
+func (mr *MockPostRepositoryInterfaceMockRecorder) GetPostByID(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPostByID", reflect.TypeOf((*MockPostRepositoryInterface)(nil).GetPostByID), arg0)
+}</span>
+
+// GetPostsByCategory mocks base method.
+func (m *MockPostRepositoryInterface) GetPostsByCategory(arg0 string) ([]*items.Post, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetPostsByCategory", arg0)
+        ret0, _ := ret[0].([]*items.Post)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetPostsByCategory indicates an expected call of GetPostsByCategory.
+func (mr *MockPostRepositoryInterfaceMockRecorder) GetPostsByCategory(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPostsByCategory", reflect.TypeOf((*MockPostRepositoryInterface)(nil).GetPostsByCategory), arg0)
+}</span>
+
+// GetPostsByUsername mocks base method.
+func (m *MockPostRepositoryInterface) GetPostsByUsername(arg0 string) ([]*items.Post, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetPostsByUsername", arg0)
+        ret0, _ := ret[0].([]*items.Post)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetPostsByUsername indicates an expected call of GetPostsByUsername.
+func (mr *MockPostRepositoryInterfaceMockRecorder) GetPostsByUsername(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPostsByUsername", reflect.TypeOf((*MockPostRepositoryInterface)(nil).GetPostsByUsername), arg0)
+}</span>
+
+// PostComment mocks base method.
+func (m *MockPostRepositoryInterface) PostComment(arg0 *items.Post, arg1 *items.Comment) (bson.ObjectId, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "PostComment", arg0, arg1)
+        ret0, _ := ret[0].(bson.ObjectId)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// PostComment indicates an expected call of PostComment.
+func (mr *MockPostRepositoryInterfaceMockRecorder) PostComment(arg0, arg1 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostComment", reflect.TypeOf((*MockPostRepositoryInterface)(nil).PostComment), arg0, arg1)
+}</span>
+
+// Vote mocks base method.
+func (m *MockPostRepositoryInterface) Vote(arg0 *items.Post, arg1, arg2 int) error <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Vote", arg0, arg1, arg2)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// Vote indicates an expected call of Vote.
+func (mr *MockPostRepositoryInterfaceMockRecorder) Vote(arg0, arg1, arg2 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockPostRepositoryInterface)(nil).Vote), arg0, arg1, arg2)
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+
+        "asperitas-clone/pkg/items"
+        "asperitas-clone/pkg/session"
+
+        jwt "github.com/dgrijalva/jwt-go"
+        "github.com/gorilla/mux"
+        "go.uber.org/zap"
+
+        _ "github.com/go-sql-driver/mysql"
+)
+
+var (
+        SecretKey = []byte("eN3aerUM")
+)
+
+// mockgen -source="user.go" -destination="user_mock.go" -package=handlers UserRepositoryInterface
+
+type UserRepositoryInterface interface {
+        GetUserByID(int) (*items.User, error)
+        GetUserByUsername(string) (*items.User, error)
+        AddUser(*items.User) (int, error)
+        Authorize(string, string) (*items.User, error)
+}
+
+type UserHandler struct {
+        PostRepo PostRepositoryInterface
+        UserRepo UserRepositoryInterface
+        Sessions session.SessionManagerInterface
+        Logger   *zap.SugaredLogger
+}
+
+func createToken(username string, userID int) ([]byte, error) <span class="cov8" title="1">{
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+                "user": map[string]interface{}{
+                        "username": username,
+                        "id":       userID,
+                },
+        })
+        tokenString, err := token.SignedString(SecretKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, errors.New(`Token to string transform error`)
+        }</span>
+        <span class="cov8" title="1">respJSON, err := json.Marshal(
+                items.Token{
+                        Token: tokenString,
+                })
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, errors.New(`Can't marshall token`)
+        }</span>
+        <span class="cov8" title="1">return respJSON, nil</span>
+}
+
+type privateUser struct {
+        Username string `json:"username"`
+        Password string `json:"password"`
+}
+
+func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        puser := privateUser{}
+        decoder := json.NewDecoder(r.Body)
+        if err := decoder.Decode(&amp;puser); err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't decode`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">r.Body.Close()
+        user := items.User{Username: puser.Username, Password: puser.Password}
+        userID, err := h.UserRepo.AddUser(&amp;user)
+        if errors.Is(err, items.ErrUserAlreadyExists) </span><span class="cov8" title="1">{
+                msg := items.MessageAuthError{
+                        Location: "body",
+                        Param:    "username",
+                        Value:    user.Username,
+                        Msg:      "already exists",
+                }
+                resp, err := json.Marshal(
+                        items.ErrorList{
+                                Errors: []items.MessageAuthError{msg},
+                        })
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, `Can't marshal errors`, http.StatusInternalServerError)
+                }</span>
+                <span class="cov8" title="1">http.Error(w, string(resp), 422)
+                return</span>
+        }
+        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, "Can't add user", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">token, err := createToken(user.Username, userID)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+        }</span>
+
+        <span class="cov8" title="1">sess, err := h.Sessions.Create(w, userID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't create session`, http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">h.Logger.Infof("Created session for %v", sess.UserID)
+        w.Write(token)</span>
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        pu := privateUser{}
+        decoder := json.NewDecoder(r.Body)
+        if err := decoder.Decode(&amp;pu); err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't decode`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">r.Body.Close()
+        user, err := h.UserRepo.Authorize(pu.Username, pu.Password)
+        if err == items.ErrNoUser </span><span class="cov8" title="1">{
+                jsonError(w, "user not found", http.StatusUnauthorized)
+                return
+        }</span> else<span class="cov8" title="1"> if err == items.ErrBadPass </span><span class="cov8" title="1">{
+                jsonError(w, "invalid password", http.StatusUnauthorized)
+                return
+        }</span> else<span class="cov8" title="1"> if err != nil </span><span class="cov8" title="1">{
+                jsonError(w, "error in DB", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">token, err := createToken(user.Username, user.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+        }</span>
+        <span class="cov8" title="1">sess, err := h.Sessions.Create(w, user.ID)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't create session`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(token)
+        h.Logger.Infof("Created session for %v", sess.UserID)</span>
+}
+
+func jsonError(w http.ResponseWriter, msg string, status int) <span class="cov8" title="1">{
+        resp, _ := json.Marshal(map[string]interface{}{
+                "message": msg,
+        })
+        http.Error(w, string(resp), status)
+}</span>
+
+func (h *UserHandler) GetPosts(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        username, ok := mux.Vars(r)["USERNAME"]
+        if !ok </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get USERNAME`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">elems, err := h.PostRepo.GetPostsByUsername(username)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, `Can't get posts`, http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">respJSON, err := json.Marshal(elems)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `json marshalling error`, http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov8" title="1">w.Write(respJSON)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: user.go
+
+// Package handlers is a generated GoMock package.
+package handlers
+
+import (
+        items "asperitas-clone/pkg/items"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+)
+
+// MockUserRepositoryInterface is a mock of UserRepositoryInterface interface.
+type MockUserRepositoryInterface struct {
+        ctrl     *gomock.Controller
+        recorder *MockUserRepositoryInterfaceMockRecorder
+}
+
+// MockUserRepositoryInterfaceMockRecorder is the mock recorder for MockUserRepositoryInterface.
+type MockUserRepositoryInterfaceMockRecorder struct {
+        mock *MockUserRepositoryInterface
+}
+
+// NewMockUserRepositoryInterface creates a new mock instance.
+func NewMockUserRepositoryInterface(ctrl *gomock.Controller) *MockUserRepositoryInterface <span class="cov8" title="1">{
+        mock := &amp;MockUserRepositoryInterface{ctrl: ctrl}
+        mock.recorder = &amp;MockUserRepositoryInterfaceMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserRepositoryInterface) EXPECT() *MockUserRepositoryInterfaceMockRecorder <span class="cov8" title="1">{
+        return m.recorder
+}</span>
+
+// AddUser mocks base method.
+func (m *MockUserRepositoryInterface) AddUser(arg0 *items.User) (int, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "AddUser", arg0)
+        ret0, _ := ret[0].(int)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// AddUser indicates an expected call of AddUser.
+func (mr *MockUserRepositoryInterfaceMockRecorder) AddUser(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddUser", reflect.TypeOf((*MockUserRepositoryInterface)(nil).AddUser), arg0)
+}</span>
+
+// Authorize mocks base method.
+func (m *MockUserRepositoryInterface) Authorize(arg0, arg1 string) (*items.User, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Authorize", arg0, arg1)
+        ret0, _ := ret[0].(*items.User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// Authorize indicates an expected call of Authorize.
+func (mr *MockUserRepositoryInterfaceMockRecorder) Authorize(arg0, arg1 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorize", reflect.TypeOf((*MockUserRepositoryInterface)(nil).Authorize), arg0, arg1)
+}</span>
+
+// GetUserByID mocks base method.
+func (m *MockUserRepositoryInterface) GetUserByID(arg0 int) (*items.User, error) <span class="cov8" title="1">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetUserByID", arg0)
+        ret0, _ := ret[0].(*items.User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetUserByID indicates an expected call of GetUserByID.
+func (mr *MockUserRepositoryInterfaceMockRecorder) GetUserByID(arg0 interface{}) *gomock.Call <span class="cov8" title="1">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByID", reflect.TypeOf((*MockUserRepositoryInterface)(nil).GetUserByID), arg0)
+}</span>
+
+// GetUserByUsername mocks base method.
+func (m *MockUserRepositoryInterface) GetUserByUsername(arg0 string) (*items.User, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetUserByUsername", arg0)
+        ret0, _ := ret[0].(*items.User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// GetUserByUsername indicates an expected call of GetUserByUsername.
+func (mr *MockUserRepositoryInterfaceMockRecorder) GetUserByUsername(arg0 interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByUsername", reflect.TypeOf((*MockUserRepositoryInterface)(nil).GetUserByUsername), arg0)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

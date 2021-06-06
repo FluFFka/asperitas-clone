@@ -1,0 +1,25 @@
+version: '3'
+
+# docker-compose up
+# docker rm $(docker ps -a -q)
+# docker volume prune -f
+
+services:
+  mysql:
+    image: mysql:8
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: g9mF7ztS
+      MYSQL_DATABASE: items
+    ports:
+      - '3306:3306'
+    volumes:
+      - './mysql/:/docker-entrypoint-initdb.d/'
+
+  mongodb:
+    image: 'mongo'
+    environment:
+      - MONGO_INITDB_DATABASE=posts
+    ports:
+      - '27017-27019:27017-27019'
+
