@@ -4,8 +4,8 @@ go 1.16
 
 require (
 	github.com/aws/aws-sdk-go v1.38.36 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/golang/mock v1.5.0
 	github.com/gorilla/mux v1.8.0
 	github.com/klauspost/compress v1.12.2 // indirect

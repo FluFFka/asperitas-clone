@@ -8,7 +8,7 @@ import (
 	"asperitas-clone/pkg/items"
 	"asperitas-clone/pkg/session"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 
